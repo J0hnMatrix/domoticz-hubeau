@@ -75,38 +75,73 @@ class CommuneResolver:
 
         # Cas 1 : Saisie de 5 chiffres (Code INSEE ou Code Postal)
         if re.match(r"^\d{5}$", clean_input) or re.match(r"^(2A|2B)\d{3}$", clean_input, re.I):
-            # Test direct code INSEE
+            res_insee = None
             try:
-                res_insee = self._query(f"communes/{clean_input}")
-                if res_insee and isinstance(res_insee, dict):
+                r_insee = self._query(f"communes/{clean_input}")
+                if r_insee and isinstance(r_insee, dict):
+                    res_insee = r_insee
+            except Exception:
+                pass
+
+            res_cp = []
+            try:
+                r_cp = self._query("communes", {"codePostal": clean_input})
+                if r_cp and isinstance(r_cp, list) and len(r_cp) > 0:
+                    res_cp = sorted(r_cp, key=lambda x: x.get("population", 0), reverse=True)
+            except Exception:
+                pass
+
+            # Si uniquement trouvé par code INSEE
+            if res_insee and not res_cp:
+                msg = (
+                    f"Code INSEE '{clean_input}' résolu vers : {res_insee.get('nom')} "
+                    f"(Dép {res_insee.get('codeDepartement')}, CP {', '.join(res_insee.get('codesPostaux', []))})"
+                )
+                return res_insee, [], msg
+
+            # Si uniquement trouvé par code postal
+            if res_cp and not res_insee:
+                selected = res_cp[0]
+                alts = res_cp[1:]
+                msg = (
+                    f"Code postal '{clean_input}' résolu vers : {selected.get('nom')} "
+                    f"(INSEE: {selected.get('code')}, Dép: {selected.get('codeDepartement')})"
+                )
+                if alts:
+                    alts_str = ", ".join([f"{c.get('nom')} ({c.get('code')})" for c in alts[:3]])
+                    msg += f" - Autres communes rattachées à ce code postal : {alts_str}"
+                return selected, alts, msg
+
+            # Si trouvé dans les deux (ambiguïté entre code postal et code INSEE d'un petit village)
+            if res_insee and res_cp:
+                # Si le code entré est bien dans les codes postaux de la commune INSEE -> Univoque
+                if clean_input in res_insee.get("codesPostaux", []):
                     msg = (
-                        f"Code INSEE '{clean_input}' validé : {res_insee.get('nom')} "
-                        f"(Dép {res_insee.get('codeDepartement')}, CP {', '.join(res_insee.get('codesPostaux', []))})"
+                        f"Code INSEE/Postal '{clean_input}' résolu vers : {res_insee.get('nom')} "
+                        f"(Dép {res_insee.get('codeDepartement')})"
                     )
                     return res_insee, [], msg
-            except Exception:
-                pass
 
-            # Si ce n'est pas un code INSEE direct, test comme code postal
-            try:
-                res_cp = self._query("communes", {"codePostal": clean_input})
-                if res_cp and isinstance(res_cp, list) and len(res_cp) > 0:
-                    # Tri par population descendante
-                    res_cp.sort(key=lambda x: x.get("population", 0), reverse=True)
-                    selected = res_cp[0]
-                    alts = res_cp[1:]
+                # Sinon, comparaison de la population : l'utilisateur a presque toujours tapé un code postal
+                top_cp = res_cp[0]
+                pop_cp = top_cp.get("population", 0)
+                pop_insee = res_insee.get("population", 0)
+
+                if pop_cp >= pop_insee:
+                    alts = [res_insee] + res_cp[1:]
                     msg = (
-                        f"Code postal '{clean_input}' résolu vers {selected.get('nom')} "
-                        f"(INSEE: {selected.get('code')}, Dép: {selected.get('codeDepartement')})"
+                        f"Code postal '{clean_input}' résolu vers : {top_cp.get('nom')} "
+                        f"(INSEE: {top_cp.get('code')}, Dép: {top_cp.get('codeDepartement')})"
                     )
-                    if alts:
-                        alts_str = ", ".join([f"{c.get('nom')} ({c.get('code')})" for c in alts[:3]])
-                        msg += f" - Autres communes desservies par ce code postal : {alts_str}"
-                    return selected, alts, msg
-            except Exception:
-                pass
+                    return top_cp, alts, msg
+                else:
+                    msg = (
+                        f"Code INSEE '{clean_input}' résolu vers : {res_insee.get('nom')} "
+                        f"(Dép {res_insee.get('codeDepartement')})"
+                    )
+                    return res_insee, res_cp, msg
 
-            # Si l'API géo n'a pas répondu, repli sur le code brut
+            # Si l'API géo n'a pas pu répondre, repli sur le code brut
             return (
                 {"code": clean_input, "nom": f"Commune {clean_input}"},
                 [],

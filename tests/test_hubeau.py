@@ -281,18 +281,50 @@ class TestCommuneResolver(unittest.TestCase):
     @patch("commune_resolver.CommuneResolver._query")
     def test_resolve_by_insee(self, mock_query):
         from commune_resolver import CommuneResolver
-        mock_query.return_value = {
-            "nom": "Paris",
-            "code": "75056",
-            "codeDepartement": "75",
-            "codesPostaux": ["75001"],
-        }
+        # Simule la réponse pour communes/75056 (INSEE) et communes?codePostal=75056 (vide)
+        def side_effect(endpoint, params=None):
+            if "communes/75056" in endpoint:
+                return {
+                    "nom": "Paris",
+                    "code": "75056",
+                    "codeDepartement": "75",
+                    "codesPostaux": ["75001"],
+                }
+            return []
+
+        mock_query.side_effect = side_effect
         resolver = CommuneResolver()
         sel, alts, msg = resolver.resolve("75056")
         self.assertIsNotNone(sel)
         self.assertEqual(sel["nom"], "Paris")
         self.assertEqual(sel["code"], "75056")
-        self.assertIn("validé", msg)
+        self.assertIn("résolu vers", msg)
+
+    @patch("commune_resolver.CommuneResolver._query")
+    def test_resolve_by_postal_code(self, mock_query):
+        from commune_resolver import CommuneResolver
+        def side_effect(endpoint, params=None):
+            if "communes/75001" in endpoint:
+                return None
+            if params and params.get("codePostal") == "75001":
+                return [
+                    {
+                        "nom": "Paris",
+                        "code": "75056",
+                        "codeDepartement": "75",
+                        "population": 2100000,
+                        "codesPostaux": ["75001"],
+                    }
+                ]
+            return []
+
+        mock_query.side_effect = side_effect
+        resolver = CommuneResolver()
+        sel, alts, msg = resolver.resolve("75001")
+        self.assertIsNotNone(sel)
+        self.assertEqual(sel["nom"], "Paris")
+        self.assertEqual(sel["code"], "75056")
+        self.assertIn("résolu vers", msg)
 
     @patch("commune_resolver.CommuneResolver._query")
     def test_resolve_by_city_name(self, mock_query):
