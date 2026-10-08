@@ -16,13 +16,14 @@ Pour assurer une testabilité maximale sans dépendance au moteur C++ de Domotic
 
 ```
 domoticz-hubeau/
-├── hubeau_client.py   # Client API Hub'Eau pur (HTTP urllib standard, sans dépendance externe)
-├── data_parser.py     # Extraction, typage et normalisation des paramètres de prélèvement
-├── plugin.py          # Adaptateur Domoticz (cycle de vie onStart, onHeartbeat, création/mise à jour de Devices)
-├── test_hubeau.py     # Suite de tests unitaires et d'intégration autonomes
-├── readme.md          # Documentation utilisateur
-├── agents.md          # Guide technique et règles d'ingénierie
-└── .gitignore         # Fichiers et dossiers ignorés par Git
+├── commune_resolver.py # Résolution et validation de commune (geo.api.gouv.fr)
+├── hubeau_client.py    # Client API Hub'Eau pur (HTTP urllib standard, sans dépendance externe)
+├── data_parser.py      # Extraction, typage et normalisation des paramètres de prélèvement
+├── plugin.py           # Adaptateur Domoticz (cycle de vie onStart, onHeartbeat, création/mise à jour de Devices)
+├── test_hubeau.py      # Suite de tests unitaires et d'intégration autonomes
+├── readme.md           # Documentation utilisateur
+├── agents.md           # Guide technique et règles d'ingénierie
+└── .gitignore          # Fichiers et dossiers ignorés par Git
 ```
 
 ### Avantages de ce découpage :

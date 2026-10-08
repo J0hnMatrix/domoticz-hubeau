@@ -10,7 +10,7 @@
         <p><b>Note sur la fréquence :</b> La base nationale est mise à jour mensuellement et les prélèvements ARS varient selon la taille de la commune. Un intervalle de 4 à 12 heures est recommandé.</p>
     </description>
     <params>
-        <param field="Mode1" label="Code INSEE de la commune" width="120px" required="true" default="45234"/>
+        <param field="Mode1" label="Commune (Nom, Code Postal ou INSEE)" width="200px" required="true" default="Thionville"/>
         <param field="Mode2" label="Code Réseau / UDI (optionnel)" width="140px" required="false" default=""/>
         <param field="Mode3" label="Fréquence de rafraîchissement" width="160px" required="true" default="4">
             <options>
@@ -80,6 +80,7 @@ except ImportError:
 
     Domoticz = MockDomoticz()
 
+from commune_resolver import CommuneResolver
 from data_parser import extract_commune_udi_info, extract_water_quality_data
 from hubeau_client import HubEauClient, HubEauError
 
@@ -103,12 +104,15 @@ class HubEauPlugin:
     """Plugin Domoticz pour le suivi de la qualité de l'eau potable via Hub'Eau."""
 
     def __init__(self) -> None:
+        self.raw_commune_input = ""
         self.code_commune = ""
+        self.nom_commune = ""
         self.code_reseau = ""
         self.poll_interval_hours = 4
         self.include_extra_tiles = True
         self.debug_mode = False
-        self.client = HubEauClient(timeout=30)
+        self.client = HubEauClient(timeout=25)
+        self.resolver = CommuneResolver(timeout=8)
         self.heartbeat_counter = 0
         self.heartbeats_required = 480  # 4h * 120 (30s par battement)
 
@@ -126,7 +130,7 @@ class HubEauPlugin:
             Domoticz.Debugging(1)
             Domoticz.Debug("Mode Debug activé pour Hub'Eau.")
 
-        self.code_commune = str(params.get("Mode1", "")).strip()
+        self.raw_commune_input = str(params.get("Mode1", "")).strip()
         self.code_reseau = str(params.get("Mode2", "")).strip()
         
         try:
@@ -137,18 +141,33 @@ class HubEauPlugin:
         self.include_extra_tiles = params.get("Mode4", "Oui") == "Oui"
 
         # Calcul du nombre de heartbeats (Domoticz appelle onHeartbeat ~toutes les 30s)
-        # 1 heure = 3600s / 30s = 120 battements
         self.heartbeats_required = self.poll_interval_hours * 120
-        self.heartbeat_counter = self.heartbeats_required  # Pour forcer une mise à jour immédiate au démarrage
+        self.heartbeat_counter = self.heartbeats_required
 
         Domoticz.Log(
-            f"Démarrage du plugin Hub'Eau (Commune INSEE: '{self.code_commune}', "
-            f"Réseau: '{self.code_reseau or 'Auto'}', Intervalle: {self.poll_interval_hours}h)"
+            f"Démarrage du plugin Hub'Eau - Saisie commune : '{self.raw_commune_input}', "
+            f"Réseau: '{self.code_reseau or 'Auto'}', Intervalle: {self.poll_interval_hours}h"
         )
 
-        if not self.code_commune:
-            Domoticz.Error("Code INSEE non configuré. Veuillez renseigner le Mode1 dans la configuration.")
+        if not self.raw_commune_input:
+            Domoticz.Error("Aucune commune renseignée. Veuillez renseigner le champ Mode1 dans la configuration.")
             return
+
+        # Résolution et validation officielle de la commune
+        commune_info, alternatives, msg = self.resolver.resolve(self.raw_commune_input)
+        if commune_info:
+            self.code_commune = str(commune_info.get("code", "")).strip()
+            self.nom_commune = str(commune_info.get("nom", "")).strip()
+            Domoticz.Log(f"Validation commune réussie : {msg}")
+        else:
+            # Repli de secours : si 5 chiffres, on utilise tel quel
+            if self.raw_commune_input.isdigit() and len(self.raw_commune_input) == 5:
+                self.code_commune = self.raw_commune_input
+                self.nom_commune = f"Commune {self.raw_commune_input}"
+                Domoticz.Log(f"Validation partielle : {msg}")
+            else:
+                Domoticz.Error(f"Validation de la commune échouée : {msg}")
+                return
 
         self._create_devices()
         self.fetch_and_update()
@@ -188,57 +207,59 @@ class HubEauPlugin:
 
     def _create_devices(self) -> None:
         """Crée l'ensemble des tuiles requises et optionnelles."""
+        prefix = f"Eau ({self.nom_commune})" if self.nom_commune else "Eau"
+
         # 1. Date dernière alimentation
         self._create_device_if_missing(
             unit=UNIT_DATE_ALIM,
-            name="Eau - Dernière alimentation UDI",
+            name=f"{prefix} - Dernière alimentation UDI",
             type_name="Text",
         )
         # 2. Date dernier prélèvement
         self._create_device_if_missing(
             unit=UNIT_DATE_PRELEVEMENT,
-            name="Eau - Dernier prélèvement",
+            name=f"{prefix} - Dernier prélèvement",
             type_name="Text",
         )
         # 3. Nitrates
         self._create_device_if_missing(
             unit=UNIT_NITRATES,
-            name="Eau - Nitrates",
+            name=f"{prefix} - Nitrates",
             type_name="Custom",
             options={"Custom": "1;mg/L"},
         )
         # 4. Potentiel Hydrogène (pH)
         self._create_device_if_missing(
             unit=UNIT_PH,
-            name="Eau - Potentiel Hydrogène (pH)",
+            name=f"{prefix} - Potentiel Hydrogène (pH)",
             type_name="Custom",
             options={"Custom": "1;pH"},
         )
         # 5. Conductivité
         self._create_device_if_missing(
             unit=UNIT_CONDUCTIVITE,
-            name="Eau - Conductivité",
+            name=f"{prefix} - Conductivité",
             type_name="Custom",
             options={"Custom": "1;µS/cm"},
         )
         # 6. Dureté de l'eau
         self._create_device_if_missing(
             unit=UNIT_DURETE,
-            name="Eau - Dureté (TH)",
+            name=f"{prefix} - Dureté (TH)",
             type_name="Custom",
             options={"Custom": "1;°f"},
         )
         # 7. Chlore libre
         self._create_device_if_missing(
             unit=UNIT_CHLORE_LIBRE,
-            name="Eau - Chlore libre",
+            name=f"{prefix} - Chlore libre",
             type_name="Custom",
             options={"Custom": "1;mg/L"},
         )
         # 8. Température au prélèvement
         self._create_device_if_missing(
             unit=UNIT_TEMPERATURE,
-            name="Eau - Température prélèvement",
+            name=f"{prefix} - Température prélèvement",
             type_name="Temperature",
         )
 
@@ -247,26 +268,26 @@ class HubEauPlugin:
             # 9. Conformité sanitaire (Alerte: 1=Conforme/Vert, 2=Dérogation, 4=Non conforme/Rouge)
             self._create_device_if_missing(
                 unit=UNIT_CONFORMITE,
-                name="Eau - Conformité sanitaire",
+                name=f"{prefix} - Conformité sanitaire",
                 type_name="Alert",
             )
             # 10. Conclusion sanitaire
             self._create_device_if_missing(
                 unit=UNIT_CONCLUSION,
-                name="Eau - Conclusion sanitaire",
+                name=f"{prefix} - Conclusion sanitaire",
                 type_name="Text",
             )
             # 11. Chlore total
             self._create_device_if_missing(
                 unit=UNIT_CHLORE_TOTAL,
-                name="Eau - Chlore total",
+                name=f"{prefix} - Chlore total",
                 type_name="Custom",
                 options={"Custom": "1;mg/L"},
             )
             # 12. Turbidité
             self._create_device_if_missing(
                 unit=UNIT_TURBIDITE,
-                name="Eau - Turbidité",
+                name=f"{prefix} - Turbidité",
                 type_name="Custom",
                 options={"Custom": "1;NFU"},
             )
@@ -287,16 +308,25 @@ class HubEauPlugin:
     def fetch_and_update(self) -> None:
         """Interroge l'API Hub'Eau et met à jour l'ensemble des tuiles."""
         if not self.code_commune:
-            Domoticz.Error("Code INSEE non configuré.")
+            Domoticz.Error("Code INSEE non configuré ou non validé.")
             return
 
-        Domoticz.Log(f"Interrogation de l'API Hub'Eau pour la commune {self.code_commune}...")
+        ville_label = f"{self.nom_commune} ({self.code_commune})" if self.nom_commune else self.code_commune
+        Domoticz.Log(f"Interrogation de l'API Hub'Eau pour {ville_label}...")
 
+        # Étape 1 : Récupération des informations UDI (avec tolérance aux pannes temporaires de l'endpoint)
+        udi_info = {}
         try:
             udis = self.client.get_communes_udi(self.code_commune)
             udi_info = extract_commune_udi_info(udis, self.code_reseau)
+        except HubEauError as err:
+            Domoticz.Log(
+                f"Information réseau UDI momentanément indisponible ({err}). "
+                f"Poursuite avec la récupération des prélèvements d'analyse..."
+            )
 
-            # Si aucun code réseau configuré, mais qu'un réseau a été identifié
+        # Étape 2 : Récupération des analyses sanitaires (resultats_dis)
+        try:
             active_reseau = self.code_reseau or udi_info.get("code_reseau")
             results = self.client.get_resultats_dis(
                 code_commune=self.code_commune,
@@ -305,13 +335,19 @@ class HubEauPlugin:
             )
 
             data = extract_water_quality_data(results, udi_info)
+            if not data.get("nom_commune") and self.nom_commune:
+                data["nom_commune"] = self.nom_commune
+
             self._apply_data(data)
-            Domoticz.Log("Données Hub'Eau mises à jour avec succès.")
+            Domoticz.Log(f"Données Hub'Eau mises à jour avec succès pour {ville_label}.")
 
         except HubEauError as err:
-            Domoticz.Error(f"Erreur lors de la récupération Hub'Eau : {err}")
+            Domoticz.Error(
+                f"Serveur Hub'Eau momentanément inaccessible pour {ville_label} : {err}. "
+                f"Les dernières mesures connues restent affichées dans Domoticz."
+            )
         except Exception as err:
-            Domoticz.Error(f"Erreur inattendue dans fetch_and_update : {err}")
+            Domoticz.Error(f"Erreur inattendue dans fetch_and_update ({ville_label}) : {err}")
 
     def _apply_data(self, data: Dict[str, Any]) -> None:
         """Applique les données extraites aux dispositifs Domoticz."""

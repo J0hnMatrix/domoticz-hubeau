@@ -44,10 +44,14 @@ Puisque les données changent à l'échelle de quelques jours à plusieurs semai
 ## ⚙️ Configuration du plugin
 
 Lors de l'ajout du matériel dans Domoticz :
-* **Code INSEE de la commune** *(Obligatoire)* : Code officiel INSEE sur 5 chiffres de votre commune (ex: `45234` pour Orléans, `75056` pour Paris, `69123` pour Lyon). *Attention, il s'agit du code INSEE et non du code postal.*
+* **Commune (Nom, Code Postal ou INSEE)** *(Obligatoire)* : Vous pouvez renseigner au choix :
+  * Le **nom de votre commune** (ex: `Thionville`, `Orléans`, `Paris`). Le plugin utilise l'API officielle `geo.api.gouv.fr` pour valider et résoudre automatiquement le code INSEE correspondant.
+  * Votre **code postal** (ex: `57100`, `45000`).
+  * Votre **code officiel INSEE** sur 5 chiffres (ex: `57672`, `45234`).
+  * *La validation affiche dans les logs Domoticz le nom officiel de la ville, le code INSEE, le département et les codes postaux rattachés.*
 * **Code Réseau / UDI** *(Optionnel)* : Si votre commune est desservie par plusieurs réseaux de distribution d'eau, vous pouvez spécifier ici le code réseau (ex: `045000474`). Si laissé vide, le plugin utilise automatiquement le premier réseau actif identifié.
 * **Intervalle de vérification** : Fréquence de scrutation de l'API (ex: 4 heures).
-* **Créer les tuiles complémentaires** : Option (Vrai / Faux) pour activer les tuiles additionnelles (Conformité Alerte, Conclusion sanitaire, Chlore total, Turbidité).
+* **Tuiles complémentaires** : Option (Oui / Non) pour activer les tuiles additionnelles (Conformité Alerte, Conclusion sanitaire, Chlore total, Turbidité).
 * **Mode Debug** : Active les traces détaillées dans les logs Domoticz pour le diagnostic.
 
 ---

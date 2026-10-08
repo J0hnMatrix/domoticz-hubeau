@@ -235,6 +235,28 @@ class TestPluginLifecycle(unittest.TestCase):
         self.assertEqual(plugin.Devices[UNIT_NITRATES].sValue, "5.4")
         self.assertEqual(plugin.Devices[UNIT_CONFORMITE].nValue, 1)
 
+    @patch("hubeau_client.HubEauClient.get_communes_udi")
+    @patch("hubeau_client.HubEauClient.get_resultats_dis")
+    def test_plugin_resilience_when_udi_fails(self, mock_dis, mock_udi):
+        mock_udi.side_effect = HubEauError("Timeout sur communes_udi")
+        mock_dis.return_value = [
+            {
+                "date_prelevement": "2026-07-30T12:35:00Z",
+                "code_parametre": "1340",
+                "libelle_parametre": "Nitrates",
+                "resultat_numerique": 8.1,
+                "resultat_alphanumerique": "8,1",
+                "libelle_unite": "mg/L",
+            }
+        ]
+
+        import plugin
+        p = plugin.HubEauPlugin()
+        p.onStart()
+
+        # Le plugin ne doit pas planter et doit quand même avoir mis à jour les nitrates
+        self.assertEqual(plugin.Devices[UNIT_NITRATES].sValue, "8.1")
+
     def test_heartbeat_trigger(self):
         import plugin
         p = plugin.HubEauPlugin()
@@ -246,6 +268,51 @@ class TestPluginLifecycle(unittest.TestCase):
             p.onHeartbeat()
             mock_fetch.assert_called_once()
             self.assertEqual(p.heartbeat_counter, 0)
+
+
+class TestCommuneResolver(unittest.TestCase):
+    """Tests du résolveur de commune via geo.api.gouv.fr."""
+
+    @patch("commune_resolver.CommuneResolver._query")
+    def test_resolve_by_insee(self, mock_query):
+        from commune_resolver import CommuneResolver
+        mock_query.return_value = {
+            "nom": "Thionville",
+            "code": "57672",
+            "codeDepartement": "57",
+            "codesPostaux": ["57100"],
+        }
+        resolver = CommuneResolver()
+        sel, alts, msg = resolver.resolve("57672")
+        self.assertIsNotNone(sel)
+        self.assertEqual(sel["nom"], "Thionville")
+        self.assertEqual(sel["code"], "57672")
+        self.assertIn("validé", msg)
+
+    @patch("commune_resolver.CommuneResolver._query")
+    def test_resolve_by_city_name(self, mock_query):
+        from commune_resolver import CommuneResolver
+        mock_query.return_value = [
+            {
+                "nom": "Thionville",
+                "code": "57672",
+                "codeDepartement": "57",
+                "codesPostaux": ["57100"],
+            },
+            {
+                "nom": "Puttelange-lès-Thionville",
+                "code": "57557",
+                "codeDepartement": "57",
+                "codesPostaux": ["57570"],
+            },
+        ]
+        resolver = CommuneResolver()
+        sel, alts, msg = resolver.resolve("Thionville")
+        self.assertIsNotNone(sel)
+        self.assertEqual(sel["nom"], "Thionville")
+        self.assertEqual(sel["code"], "57672")
+        self.assertEqual(len(alts), 1)
+        self.assertIn("résolu vers", msg)
 
 
 if __name__ == "__main__":
