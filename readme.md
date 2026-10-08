@@ -98,7 +98,7 @@ Le plugin inclut une suite de tests unitaires et peut également être exécuté
 
 ```bash
 # Lancement de la suite de tests unitaires
-python -m unittest test_hubeau.py -v
+python -m unittest discover tests -v
 
 # Test autonome en direct avec une commune (nom, code postal ou INSEE)
 python plugin.py Orléans

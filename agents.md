@@ -20,14 +20,17 @@ domoticz-hubeau/
 ├── hubeau_client.py    # Client API Hub'Eau pur (HTTP urllib standard, sans dépendance externe)
 ├── data_parser.py      # Extraction, typage et normalisation des paramètres de prélèvement
 ├── plugin.py           # Adaptateur Domoticz (cycle de vie onStart, onHeartbeat, création/mise à jour de Devices)
-├── test_hubeau.py      # Suite de tests unitaires et d'intégration autonomes
+├── plugin.png          # Icône du matériel pour l'interface Domoticz
+├── tests/
+│   └── test_hubeau.py  # Suite de tests unitaires et d'intégration autonomes
 ├── readme.md           # Documentation utilisateur
+├── LICENSE             # Licence MIT
 ├── agents.md           # Guide technique et règles d'ingénierie
 └── .gitignore          # Fichiers et dossiers ignorés par Git
 ```
 
 ### Avantages de ce découpage :
-* `hubeau_client.py` et `data_parser.py` peuvent être testés via `pytest` ou `python test_hubeau.py` sans mock complexe du moteur Domoticz.
+* `hubeau_client.py` et `data_parser.py` peuvent être testés via `python -m unittest discover tests` sans mock complexe du moteur Domoticz.
 * `plugin.py` intègre un mock léger de l'objet global `Domoticz` pour permettre son exécution directe en CLI pour le debug.
 * Zéro dépendance tierce requise sur le serveur Domoticz (utilisation de `urllib.request`, `json`, `datetime` de la bibliothèque standard Python).
 
