@@ -19,7 +19,7 @@ logger = logging.getLogger("HubEauClient")
 
 API_BASE_URL = "https://hubeau.eaufrance.fr/api/v1/qualite_eau_potable"
 DEFAULT_USER_AGENT = "Domoticz-HubEau-Plugin/1.0 (+https://github.com/domoticz)"
-DEFAULT_TIMEOUT = 15  # secondes
+DEFAULT_TIMEOUT = 30  # secondes
 
 
 class HubEauError(Exception):
@@ -63,8 +63,8 @@ class HubEauClient:
                 return json.loads(raw_data)
         except urllib.error.HTTPError as err:
             raise HubEauError(f"Erreur HTTP {err.code} lors de l'appel {url}: {err.reason}") from err
-        except urllib.error.URLError as err:
-            raise HubEauError(f"Erreur réseau lors de l'appel {url}: {err.reason}") from err
+        except (urllib.error.URLError, TimeoutError) as err:
+            raise HubEauError(f"Délai d'attente ou erreur réseau lors de l'appel {url}: {err}") from err
         except json.JSONDecodeError as err:
             raise HubEauError(f"Réponse JSON invalide reçue de {url}: {err}") from err
         except Exception as err:
