@@ -1,82 +1,112 @@
-# Plugin Domoticz - Qualité de l'Eau Potable (Hub'Eau)
+# Domoticz Hub'Eau - Qualité de l'Eau Potable
 
-Ce plugin pour [Domoticz](https://www.domoticz.com/) permet de surveiller la qualité de l'eau potable distribuée dans votre commune en interrogeant directement l'API officielle française [Hub'Eau - Qualité de l'eau potable](https://hubeau.eaufrance.fr/page/api-qualite-eau-potable).
+[![Domoticz](https://img.shields.io/badge/Domoticz-Compatible-blue.svg)](https://www.domoticz.com/)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-brightgreen.svg)](https://www.python.org/)
+[![API Hub'Eau](https://img.shields.io/badge/API-Hub'Eau%20Eau%20Potable-informational.svg)](https://hubeau.eaufrance.fr/page/api-qualite-eau-potable)
+[![API Géo](https://img.shields.io/badge/API-geo.api.gouv.fr-blueviolet.svg)](https://geo.api.gouv.fr/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Les données proviennent des résultats du contrôle sanitaire officiel de l'eau du robinet réalisé par les Agences Régionales de Santé (ARS), consolidées dans la base SISE-Eaux du Ministère de la Santé et publiées sur data.gouv.fr / Hub'Eau.
+Plugin Python pour **[Domoticz](https://www.domoticz.com/)** permettant de suivre la qualité de l'eau potable du robinet en France via l'API publique officielle **[Hub'Eau](https://hubeau.eaufrance.fr/page/api-qualite-eau-potable)** (Ministère de la Santé / BRGM / Agences de l'eau).
+
+Les données proviennent directement des résultats du contrôle sanitaire officiel de l'eau distribuée réalisés par les Agences Régionales de Santé (ARS), consolidées dans la base SISE-Eaux.
 
 ---
 
-## 📋 Tuiles créées dans Domoticz
+## 🚀 Fonctionnalités clés
 
-Le plugin crée et met à jour automatiquement les dispositifs suivants :
+* **Résolution intelligente de la commune** : Vous pouvez saisir directement le **nom de votre ville** (ex: *Paris*, *Lyon*, *Orléans*) ou votre **code postal** (ex: *75001*, *69001*). Le plugin résout et valide automatiquement le code officiel INSEE via l'API nationale `geo.api.gouv.fr`.
+* **Nommage contextualisé des dispositifs** : Les tuiles créées intègrent automatiquement le nom officiel de votre ville (ex: `Eau (Orléans) - Nitrates`).
+* **Zéro dépendance tierce** : Développé exclusivement avec les modules standards de Python (`urllib.request`, `json`, `datetime`). Aucune commande `pip install` n'est requise.
+* **Tolérance aux pannes et résilience** : Gestion des indisponibilités temporaires ou lenteurs des serveurs publics avec conservation des dernières mesures connues et reprises automatiques.
 
-### Tuiles principales (demandées)
-1. **Date dernière alimentation** : Date de début d'alimentation du réseau / unité de distribution (UDI) de la commune *(Dispositif Texte)*.
-2. **Date dernier prélèvement** : Date et heure du dernier contrôle sanitaire enregistré *(Dispositif Texte)*.
-3. **Nitrates** : Teneur en nitrates en $mg/L$ (Code Sandre `1340`) *(Capteur personnalisé, unité mg/L)*.
-4. **Potentiel Hydrogène (pH)** : Mesure du pH de l'eau (Code Sandre `1302`) *(Capteur personnalisé ou pH)*.
-5. **Conductivité** : Conductivité électrique à 25 °C en $\mu S/cm$ (Code Sandre `1303`) *(Capteur personnalisé, unité µS/cm)*.
-6. **Dureté de l'eau** : Titre hydrotimétrique (TH) en degrés français $°f$ (Code Sandre `7972`) *(Capteur personnalisé, unité °f)*.
-7. **Chlore libre** : Teneur en chlore libre en $mg(Cl_2)/L$ (Code Sandre `1398`) *(Capteur personnalisé, unité mg/L)*.
-8. **Température au prélèvement** : Température de l'eau mesurée sur le terrain lors du prélèvement en $°C$ (Code Sandre `1301`) *(Capteur Température)*.
+---
 
-### Tuiles complémentaires
-9. **Conformité sanitaire** : Statut global de conformité du prélèvement (chimique et bactériologique) avec code couleur Domoticz *(Dispositif Alerte : Vert = Conforme, Jaune/Orange = Dérogation / Avertissement, Rouge = Non conforme)*.
-10. **Conclusion sanitaire** : Texte officiel de la conclusion sanitaire rédigée par l'ARS *(Dispositif Texte)*.
-11. **Chlore total** : Teneur en chlore total en $mg(Cl_2)/L$ (Code Sandre `1399`) *(Capteur personnalisé, unité mg/L)*.
-12. **Turbidité** : Turbidité néphélométrique en NFU (Code Sandre `1295`) *(Capteur personnalisé, unité NFU)*.
+## 📊 Tuiles créées dans Domoticz
+
+Le plugin crée automatiquement des dispositifs dédiés dans Domoticz :
+
+### Tuiles principales
+| Dispositif | Type Domoticz | Code Sandre | Unité | Description |
+|---|---|:---:|:---:|---|
+| **Dernière alimentation UDI** | Text | - | Date | Date de mise en service du réseau de distribution |
+| **Dernier prélèvement** | Text | - | Date/Heure | Date et heure du dernier contrôle sanitaire ARS |
+| **Nitrates** | Custom Sensor | `1340` | $mg/L$ | Teneur en nitrates ($NO_3$) |
+| **Potentiel Hydrogène (pH)** | Custom Sensor | `1302` | $pH$ | Mesure de l'acidité / basicité de l'eau |
+| **Conductivité** | Custom Sensor | `1303` | $\mu S/cm$ | Conductivité électrique à 25 °C |
+| **Dureté de l'eau (TH)** | Custom Sensor | `7972` | $°f$ | Titre hydrotimétrique en degrés français |
+| **Chlore libre** | Custom Sensor | `1398` | $mg/L$ | Chlore actif désinfectant |
+| **Température prélèvement** | Temperature | `1301` | $°C$ | Température relevée au point de captage |
+
+### Tuiles complémentaires (activables dans les réglages)
+| Dispositif | Type Domoticz | Code Sandre | Unité | Description |
+|---|---|:---:|:---:|---|
+| **Conformité sanitaire** | Alert | - | Statut | 🟢 Vert (Conforme), 🟡 Jaune (Dérogation), 🔴 Rouge (Non conforme) |
+| **Conclusion sanitaire** | Text | - | Texte | Avis sanitaire officiel rédigé par l'ARS |
+| **Chlore total** | Custom Sensor | `1399` | $mg/L$ | Chlore combiné et libre total |
+| **Turbidité** | Custom Sensor | `1295` | $NFU$ | Clarté et transparence de l'eau |
 
 ---
 
 ## ⏱️ Fréquence de rafraîchissement des données
 
-### Comment sont mises à jour les données Hub'Eau ?
-* **Publication Hub'Eau / Ministère de la Santé** : Les données nationales SISE-Eaux sont consolidées et republiées par l'API Hub'Eau selon un rythme **mensuel**.
-* **Prélèvements sur le terrain (ARS)** : La fréquence des prélèvements réels en commune dépend du Code de la santé publique (taille de la population desservie, débit du réseau, historique et vulnérabilité de la ressource). Une grande métropole peut faire l'objet de plusieurs analyses par semaine, tandis qu'une petite commune rurale peut être contrôlée mensuellement ou trimestriellement.
-
-### Recommandation d'intervalle dans Domoticz
-Puisque les données changent à l'échelle de quelques jours à plusieurs semaines, un appel permanent est inutile. Le plugin propose par défaut un rafraîchissement toutes les **4 heures** (ou configurable : 1h, 2h, 4h, 12h, 24h). Cela garantit :
-* Une détection rapide dès qu'un nouveau rapport d'analyse est publié.
-* Un respect parfait des quotas et serveurs de l'API Hub'Eau.
-
----
-
-## ⚙️ Configuration du plugin
-
-Lors de l'ajout du matériel dans Domoticz :
-* **Commune (Nom, Code Postal ou INSEE)** *(Obligatoire)* : Vous pouvez renseigner au choix :
-  * Le **nom de votre commune** (ex: `Thionville`, `Orléans`, `Paris`). Le plugin utilise l'API officielle `geo.api.gouv.fr` pour valider et résoudre automatiquement le code INSEE correspondant.
-  * Votre **code postal** (ex: `57100`, `45000`).
-  * Votre **code officiel INSEE** sur 5 chiffres (ex: `57672`, `45234`).
-  * *La validation affiche dans les logs Domoticz le nom officiel de la ville, le code INSEE, le département et les codes postaux rattachés.*
-* **Code Réseau / UDI** *(Optionnel)* : Si votre commune est desservie par plusieurs réseaux de distribution d'eau, vous pouvez spécifier ici le code réseau (ex: `045000474`). Si laissé vide, le plugin utilise automatiquement le premier réseau actif identifié.
-* **Intervalle de vérification** : Fréquence de scrutation de l'API (ex: 4 heures).
-* **Tuiles complémentaires** : Option (Oui / Non) pour activer les tuiles additionnelles (Conformité Alerte, Conclusion sanitaire, Chlore total, Turbidité).
-* **Mode Debug** : Active les traces détaillées dans les logs Domoticz pour le diagnostic.
+* **Rythme de publication Hub'Eau** : Les données nationales de contrôle sanitaire sont publiées et consolidées **mensuellement**.
+* **Prélèvements sur le terrain (ARS)** : La fréquence réglementaire des prélèvements dépend de la taille de la population desservie et du débit des installations (de plusieurs fois par semaine pour les grandes métropoles à quelques semaines ou mois pour les petites communes).
+* **Intervalle recommandé** : Un rafraîchissement toutes les **4 heures** (paramètre par défaut) permet de détecter un nouveau rapport dès sa mise en ligne sans solliciter inutilement les serveurs de l'API.
 
 ---
 
 ## 📦 Installation
 
-1. Accédez au répertoire des plugins de votre installation Domoticz :
-   ```bash
-   cd domoticz/plugins
-   ```
-2. Clonez ce dépôt :
-   ```bash
-   git clone https://github.com/<votre-compte>/domoticz-hubeau.git Domoticz-HubEau
-   ```
-3. Redémarrez le service Domoticz :
-   ```bash
-   sudo systemctl restart domoticz
-   ```
-4. Dans l'interface Web de Domoticz, rendez-vous dans le menu **Réglages > Matériel** (Setup > Hardware).
-5. Dans la liste déroulante des types de matériel, choisissez **Hub'Eau - Qualité de l'eau potable**.
-6. Renseignez votre **Code INSEE**, ajustez vos options et cliquez sur **Ajouter**.
+### 1. Cloner le dépôt
+Accédez au répertoire `plugins` de votre installation Domoticz :
+
+```bash
+cd domoticz/plugins
+git clone https://github.com/J0hnMatrix/domoticz-hubeau.git Domoticz-HubEau
+```
+
+*(Sous Linux, assurez-vous des droits d'exécution si nécessaire : `chmod +x Domoticz-HubEau/plugin.py`)*
+
+### 2. Redémarrer Domoticz
+```bash
+sudo systemctl restart domoticz
+```
+
+### 3. Ajouter le matériel
+1. Ouvrez l'interface web de Domoticz.
+2. Allez dans **Réglages > Matériel** (*Setup > Hardware*).
+3. Sélectionnez le type : **Hub'Eau - Qualité de l'eau potable**.
+4. Renseignez les paramètres et cliquez sur **Ajouter**.
 
 ---
 
-## 🛠️ Dépendances
+## ⚙️ Paramètres de configuration
 
-* Python **3.8+**
-* Aucune dépendance externe obligatoire : le client utilise la bibliothèque standard Python (`urllib.request`, `json`). Compatible nativement avec Raspberry Pi OS, Debian, Ubuntu, Windows et Docker.
+| Paramètre | Description | Défaut |
+|---|---|:---:|
+| **Commune** | Nom de la ville (ex: `Orléans`), code postal (ex: `45000`) ou code INSEE (ex: `45234`). | `Paris` |
+| **Code Réseau / UDI** | Code réseau spécifique si la commune comporte plusieurs réseaux (optionnel). | *(Automatique)* |
+| **Fréquence** | Intervalle entre chaque vérification (1h, 2h, 4h, 6h, 12h, 24h). | `4 heures` |
+| **Tuiles complémentaires** | Active les tuiles d'alerte conformité, avis sanitaire, chlore total et turbidité. | `Oui` |
+| **Mode Debug** | Affiche les traces détaillées dans le journal Domoticz. | `Faux` |
+
+---
+
+## 🧪 Tests autonomes
+
+Le plugin inclut une suite de tests unitaires et peut également être exécuté directement en ligne de commande en dehors de Domoticz :
+
+```bash
+# Lancement de la suite de tests unitaires
+python -m unittest test_hubeau.py -v
+
+# Test autonome en direct avec une commune (nom, code postal ou INSEE)
+python plugin.py Orléans
+python plugin.py 69001
+```
+
+---
+
+## 📄 Licence
+
+Ce projet est distribué sous licence MIT. Consultez le fichier [LICENSE](LICENSE) pour plus de détails.
