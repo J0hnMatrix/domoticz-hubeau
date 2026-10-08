@@ -5,9 +5,9 @@
 Module de résolution et validation de communes françaises.
 Utilise l'API publique officielle geo.api.gouv.fr (Etalab / data.gouv.fr).
 Permet aux utilisateurs de saisir :
-- Un code INSEE (ex: '57672')
-- Un code postal (ex: '57100')
-- Un nom de ville (ex: 'Thionville', 'Orléans', 'Paris')
+- Un nom de ville (ex: 'Paris', 'Lyon', 'Orléans', 'Marseille')
+- Un code postal (ex: '75001', '69001', '45000')
+- Un code INSEE (ex: '75056', '69123', '45234')
 
 Zéro dépendance tierce (urllib.request standard).
 """

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-<plugin key="HubEauDrinkingWater" name="Hub'Eau - Qualité de l'eau potable" author="Arnaud" version="1.0.0" wikilink="https://hubeau.eaufrance.fr/page/api-qualite-eau-potable">
+<plugin key="HubEauDrinkingWater" name="Hub'Eau - Qualité de l'eau potable" author="J0hnMatrix" version="1.0.0" wikilink="https://github.com/J0hnMatrix/domoticz-hubeau">
     <description>
         <h2>Hub'Eau - Qualité de l'eau potable</h2>
         <p>Ce plugin interroge l'API officielle publique <b>Hub'Eau</b> (Ministère de la Santé / BRGM / Agences de l'eau) afin de suivre la qualité de l'eau potable distribuée dans votre commune.</p>
@@ -10,7 +10,7 @@
         <p><b>Note sur la fréquence :</b> La base nationale est mise à jour mensuellement et les prélèvements ARS varient selon la taille de la commune. Un intervalle de 4 à 12 heures est recommandé.</p>
     </description>
     <params>
-        <param field="Mode1" label="Commune (Nom, Code Postal ou INSEE)" width="200px" required="true" default="Thionville"/>
+        <param field="Mode1" label="Commune (Nom, Code Postal ou INSEE)" width="200px" required="true" default="Paris"/>
         <param field="Mode2" label="Code Réseau / UDI (optionnel)" width="140px" required="false" default=""/>
         <param field="Mode3" label="Fréquence de rafraîchissement" width="160px" required="true" default="4">
             <options>

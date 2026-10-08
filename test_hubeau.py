@@ -277,16 +277,16 @@ class TestCommuneResolver(unittest.TestCase):
     def test_resolve_by_insee(self, mock_query):
         from commune_resolver import CommuneResolver
         mock_query.return_value = {
-            "nom": "Thionville",
-            "code": "57672",
-            "codeDepartement": "57",
-            "codesPostaux": ["57100"],
+            "nom": "Paris",
+            "code": "75056",
+            "codeDepartement": "75",
+            "codesPostaux": ["75001"],
         }
         resolver = CommuneResolver()
-        sel, alts, msg = resolver.resolve("57672")
+        sel, alts, msg = resolver.resolve("75056")
         self.assertIsNotNone(sel)
-        self.assertEqual(sel["nom"], "Thionville")
-        self.assertEqual(sel["code"], "57672")
+        self.assertEqual(sel["nom"], "Paris")
+        self.assertEqual(sel["code"], "75056")
         self.assertIn("validé", msg)
 
     @patch("commune_resolver.CommuneResolver._query")
@@ -294,23 +294,23 @@ class TestCommuneResolver(unittest.TestCase):
         from commune_resolver import CommuneResolver
         mock_query.return_value = [
             {
-                "nom": "Thionville",
-                "code": "57672",
-                "codeDepartement": "57",
-                "codesPostaux": ["57100"],
+                "nom": "Paris",
+                "code": "75056",
+                "codeDepartement": "75",
+                "codesPostaux": ["75001"],
             },
             {
-                "nom": "Puttelange-lès-Thionville",
-                "code": "57557",
-                "codeDepartement": "57",
-                "codesPostaux": ["57570"],
+                "nom": "Paris-l'Hôpital",
+                "code": "71343",
+                "codeDepartement": "71",
+                "codesPostaux": ["71150"],
             },
         ]
         resolver = CommuneResolver()
-        sel, alts, msg = resolver.resolve("Thionville")
+        sel, alts, msg = resolver.resolve("Paris")
         self.assertIsNotNone(sel)
-        self.assertEqual(sel["nom"], "Thionville")
-        self.assertEqual(sel["code"], "57672")
+        self.assertEqual(sel["nom"], "Paris")
+        self.assertEqual(sel["code"], "75056")
         self.assertEqual(len(alts), 1)
         self.assertIn("résolu vers", msg)
 
