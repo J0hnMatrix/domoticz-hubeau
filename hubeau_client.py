@@ -56,19 +56,36 @@ class HubEauClient:
             },
         )
 
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as response:
-                charset = response.headers.get_content_charset() or "utf-8"
-                raw_data = response.read().decode(charset)
-                return json.loads(raw_data)
-        except urllib.error.HTTPError as err:
-            raise HubEauError(f"Erreur HTTP {err.code} lors de l'appel {url}: {err.reason}") from err
-        except (urllib.error.URLError, TimeoutError) as err:
-            raise HubEauError(f"Délai d'attente ou erreur réseau lors de l'appel {url}: {err}") from err
-        except json.JSONDecodeError as err:
-            raise HubEauError(f"Réponse JSON invalide reçue de {url}: {err}") from err
-        except Exception as err:
-            raise HubEauError(f"Erreur inattendue lors de l'appel {url}: {err}") from err
+        max_retries = 1
+        for attempt in range(max_retries + 1):
+            try:
+                with urllib.request.urlopen(req, timeout=self.timeout) as response:
+                    charset = response.headers.get_content_charset() or "utf-8"
+                    raw_data = response.read().decode(charset)
+                    return json.loads(raw_data)
+            except urllib.error.HTTPError as err:
+                if err.code in (500, 502, 503, 504) and attempt < max_retries:
+                    import time
+                    time.sleep(2)
+                    continue
+                if err.code == 502:
+                    raise HubEauError(
+                        f"Le serveur Hub'Eau est temporairement indisponible (Erreur 502 Proxy/Surcharge). Réessayez plus tard."
+                    ) from err
+                raise HubEauError(f"Erreur HTTP {err.code} lors de l'appel {url}: {err.reason}") from err
+            except (urllib.error.URLError, TimeoutError) as err:
+                if attempt < max_retries:
+                    import time
+                    time.sleep(2)
+                    continue
+                raise HubEauError(
+                    f"Délai d'attente ou indisponibilité du serveur Hub'Eau (timeout après {self.timeout}s). "
+                    f"Le service public peut être temporairement ralenti."
+                ) from err
+            except json.JSONDecodeError as err:
+                raise HubEauError(f"Réponse JSON invalide reçue de {url}: {err}") from err
+            except Exception as err:
+                raise HubEauError(f"Erreur inattendue lors de l'appel {url}: {err}") from err
 
     def get_communes_udi(
         self, code_commune: str, annee: Optional[int] = None
